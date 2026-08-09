@@ -1,0 +1,187 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: cognitoclientmappings.recognito.io
+spec:
+  group: recognito.io
+  names:
+    kind: CognitoClientMapping
+    plural: cognitoclientmappings
+    shortNames:
+    - ccm
+    singular: cognitoclientmapping
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .status.clientId
+      name: Client ID
+      type: string
+    - jsonPath: .spec.serviceAccountRef.name
+      name: ServiceAccount
+      type: string
+    - jsonPath: .status.conditions[?(@.type=="Ready")].status
+      name: Ready
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Auto-generated derived type for CognitoClientMappingSpec via `CustomResource`
+        properties:
+          spec:
+            properties:
+              allowedScopes:
+                description: |-
+                  Named scope profiles this mapping may mint. Callers downscope by naming
+                  a narrower profile; see [`crate::scope`] for why this is a bounded list
+                  rather than an arbitrary scope set.
+                items:
+                  description: |-
+                    A named, authorized scope set. The `name` is what a caller asks for; the
+                    `scopes` are what it gets.
+                  properties:
+                    name:
+                      description: Caller-facing profile name, unique within a mapping.
+                      type: string
+                    scopes:
+                      description: Cognito resource-server scopes, e.g. `payments/read`.
+                      items:
+                        type: string
+                      type: array
+                  required:
+                  - name
+                  - scopes
+                  type: object
+                minItems: 1
+                type: array
+              deliverTo:
+                description: |-
+                  Opt-in push mode: the broker writes *tokens* (never client secrets) to
+                  a Secret in this namespace for workloads that cannot call the broker.
+                  Weaker audit posture; the pull endpoint remains primary (ADR-12).
+                nullable: true
+                properties:
+                  secretRef:
+                    properties:
+                      name:
+                        type: string
+                    required:
+                    - name
+                    type: object
+                required:
+                - secretRef
+                type: object
+              rotateAfter:
+                default: 90d
+                description: How long a client secret may live before the controller rotates it.
+                pattern: ^[1-9][0-9]*(s|m|h|d)$
+                type: string
+              serviceAccountRef:
+                description: |-
+                  The ServiceAccount authorized by this mapping. **Always resolved in the
+                  mapping's own namespace** — there is deliberately no `namespace` field.
+
+                  A cross-namespace reference would let anyone who can create a mapping in
+                  a namespace they control grant themselves the identity of a
+                  ServiceAccount in a namespace they do not, which turns namespaced RBAC
+                  into a suggestion.
+                properties:
+                  name:
+                    type: string
+                required:
+                - name
+                type: object
+              tokenValidity:
+                default: 15m
+                description: Access-token lifetime requested from Cognito.
+                pattern: ^[1-9][0-9]*(s|m|h|d)$
+                type: string
+              userPoolId:
+                description: Cognito user pool that owns the generated app client.
+                pattern: ^[a-z]{2}(-[a-z]+)+-[0-9]+_[0-9a-zA-Z]+$
+                type: string
+            required:
+            - allowedScopes
+            - serviceAccountRef
+            - userPoolId
+            type: object
+          status:
+            nullable: true
+            properties:
+              clientId:
+                description: |-
+                  Cognito app client ID. Stable across secret rotations — rotation
+                  replaces the secret, never the client.
+                nullable: true
+                type: string
+              conditions:
+                items:
+                  description: Condition contains details for one aspect of the current state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: lastTransitionTime is the last time the condition transitioned from one status to another. This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: message is a human readable message indicating details about the transition. This may be an empty string.
+                      type: string
+                    observedGeneration:
+                      description: observedGeneration represents the .metadata.generation that the condition was set based upon. For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date with respect to the current state of the instance.
+                      format: int64
+                      type: integer
+                    reason:
+                      description: reason contains a programmatic identifier indicating the reason for the condition's last transition. Producers of specific condition types may define expected values and meanings for this field, and whether the values are considered a guaranteed API. The value should be a CamelCase string. This field may not be empty.
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+              lastVerified:
+                description: |-
+                  When the slow audit loop last confirmed Cognito matches this spec.
+                  Distinct from `spec_hash`: the hash says "we applied it", this says
+                  "we have since seen that it is still true".
+                format: date-time
+                nullable: true
+                type: string
+              secretCreatedAt:
+                description: Time is a wrapper around time.Time which supports correct marshaling to YAML and JSON.  Wrappers are provided for many of the factory methods that the time package offers.
+                format: date-time
+                nullable: true
+                type: string
+              secretGeneration:
+                description: |-
+                  Bumped on every rotation. The broker's secret cache evicts on a
+                  generation change (ADR-10) — this is the informer's version signal.
+                format: uint64
+                minimum: 0.0
+                nullable: true
+                type: integer
+              specHash:
+                description: |-
+                  Hash of the spec the controller last applied to Cognito. Equality with
+                  the live spec's hash is what lets a resync short-circuit without an AWS
+                  call (CLAUDE.md invariant 4).
+                nullable: true
+                type: string
+            type: object
+        required:
+        - spec
+        title: CognitoClientMapping
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

@@ -1,0 +1,16 @@
+[package]
+name = "recognito-api"
+description = "CognitoClientMapping CRD types and the scope/duration validation shared by controller and broker."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+k8s-openapi.workspace = true
+kube.workspace = true
+schemars.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+thiserror.workspace = true

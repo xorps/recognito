@@ -1,0 +1,28 @@
+[package]
+name = "recognito-cache"
+description = "Token cache fabric: LWW-by-expiry lattice, singleflight, jittered lazy refresh."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+# Deliberately depends on neither `recognito-api` nor kube nor any AWS SDK.
+# The credential source is injected as a `TokenFetcher`, which is what keeps
+# this crate extractable into its own repo (CLAUDE.md).
+[dependencies]
+async-trait.workspace = true
+dashmap.workspace = true
+thiserror.workspace = true
+tokio = { workspace = true, features = ["macros", "rt", "sync", "time"] }
+tracing.workspace = true
+
+[dev-dependencies]
+rand.workspace = true
+serde = { workspace = true }
+serde_json.workspace = true
+tokio = { workspace = true, features = ["full"] }
+
+[[example]]
+name = "gossip_cache_demo"
+# The worked example of the *deferred* v2 peer fabric (ADR-5). Kept building so
+# the design stays executable, but nothing in src/ depends on it.
