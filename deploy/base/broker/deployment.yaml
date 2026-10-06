@@ -1,0 +1,149 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: recognito-broker
+  labels:
+    app.kubernetes.io/name: recognito-broker
+    app.kubernetes.io/part-of: recognito
+spec:
+  # Memory-only state (CLAUDE.md invariant 1): always a Deployment, never a
+  # StatefulSet. >=3 replicas so PDB minAvailable 2 still allows a drain.
+  replicas: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: recognito-broker
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      # Never drop below full capacity: a cold replica refetches tokens and
+      # spends shared ClientAuthentication quota.
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: recognito-broker
+        app.kubernetes.io/part-of: recognito
+    spec:
+      serviceAccountName: recognito-broker
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      topologySpreadConstraints:
+        - maxSkew: 1
+          minDomains: 3
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: recognito-broker
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: recognito-broker
+      containers:
+        - name: broker
+          image: ghcr.io/recognito/recognito:0.1.0
+          command: ["/usr/local/bin/recognito-broker"]
+          ports:
+            - name: https
+              containerPort: 8443
+              protocol: TCP
+            - name: ops
+              containerPort: 9090
+              protocol: TCP
+            # Peer fabric (ADR-5): mTLS between replicas only; see
+            # networkpolicy.yaml.
+            - name: peer
+              containerPort: 8444
+              protocol: TCP
+          env:
+            # Byte-exact, canonical (invariant 2); must equal the audience
+            # workloads request in their projected token volume.
+            - name: RECOGNITO_BROKER_AUDIENCE
+              value: https://cognito-broker.REPLACE_WITH_DOMAIN
+            - name: RECOGNITO_USER_POOL_ID
+              value: REPLACE_WITH_POOL_ID
+            - name: RECOGNITO_COGNITO_DOMAIN
+              value: https://REPLACE_WITH_COGNITO_DOMAIN
+            - name: RECOGNITO_LISTEN_ADDR
+              value: 0.0.0.0:8443
+            - name: RECOGNITO_OPS_LISTEN_ADDR
+              value: 0.0.0.0:9090
+            - name: RECOGNITO_TLS_CERT_FILE
+              value: /etc/recognito/tls/tls.crt
+            - name: RECOGNITO_TLS_KEY_FILE
+              value: /etc/recognito/tls/tls.key
+            # Peer fabric. Readiness waits for a warm-up pull from the fleet so a
+            # rolling restart does not stampede Cognito.
+            - name: RECOGNITO_PEER_SERVICE
+              value: cognito-broker-peers
+            - name: RECOGNITO_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: RECOGNITO_POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: RECOGNITO_PEER_LISTEN_ADDR
+              value: 0.0.0.0:8444
+            - name: RECOGNITO_PEER_TLS_CERT_FILE
+              value: /etc/recognito/peer/tls.crt
+            - name: RECOGNITO_PEER_TLS_KEY_FILE
+              value: /etc/recognito/peer/tls.key
+            - name: RECOGNITO_PEER_TLS_CA_FILE
+              value: /etc/recognito/peer/ca.crt
+            - name: RUST_LOG
+              value: info
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: ops
+            periodSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: ops
+            periodSeconds: 10
+            failureThreshold: 3
+          # Tokio worker_threads is derived from the cgroup CPU limit by the
+          # binary, so keep the limit an integer number of CPUs.
+          resources:
+            requests:
+              cpu: 250m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 256Mi
+          securityContext:
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            - name: tls
+              mountPath: /etc/recognito/tls
+              readOnly: true
+            - name: peer-tls
+              mountPath: /etc/recognito/peer
+              readOnly: true
+      volumes:
+        - name: tls
+          secret:
+            # Issued by cert-manager; see deploy/examples/broker-certificate.yaml.
+            secretName: recognito-broker-tls
+        - name: peer-tls
+          secret:
+            # Shared peer certificate from a dedicated CA; see
+            # deploy/examples/peer-certificates.yaml. Anyone holding this key
+            # can inject tokens into every replica: never reuse the CA.
+            secretName: recognito-broker-peer-tls

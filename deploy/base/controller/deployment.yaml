@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: recognito-controller
+  labels:
+    app.kubernetes.io/name: recognito-controller
+    app.kubernetes.io/part-of: recognito
+spec:
+  # Single writer to Cognito. There is no leader election in v1, so exactly
+  # one replica, and Recreate so an old and a new pod never overlap during a
+  # rollout (two writers would race rotations and burn the 5 RPS/pool budget).
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: recognito-controller
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: recognito-controller
+        app.kubernetes.io/part-of: recognito
+    spec:
+      serviceAccountName: recognito-controller
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: controller
+          image: ghcr.io/recognito/recognito:0.1.0
+          command: ["/usr/local/bin/recognito-controller"]
+          ports:
+            - name: ops
+              containerPort: 9090
+              protocol: TCP
+          env:
+            - name: RECOGNITO_OPS_LISTEN_ADDR
+              value: 0.0.0.0:9090
+            - name: RECOGNITO_ALLOWED_USER_POOLS
+              value: REPLACE_WITH_POOL_ID
+            # Drift audit shares UserPoolClientRead quota with the broker
+            # (invariant 3): keep at 1-2.
+            - name: RECOGNITO_AUDIT_RPS
+              value: "1"
+            # Must exceed broker secret-cache propagation lag.
+            - name: RECOGNITO_ROTATION_GRACE
+              value: 10m
+            - name: RUST_LOG
+              value: info
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: ops
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: ops
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 128Mi
+          securityContext:
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault

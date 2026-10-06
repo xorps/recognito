@@ -1,0 +1,21 @@
+# Namespaced on purpose: a broker only needs to see its own peers.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: recognito-broker-peers
+rules:
+  - apiGroups: ["discovery.k8s.io"]
+    resources: ["endpointslices"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: recognito-broker-peers
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: recognito-broker-peers
+subjects:
+  - kind: ServiceAccount
+    name: recognito-broker

@@ -1,0 +1,56 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.99"
+license = "Apache-2.0"
+
+# `cache` is a path dependency from day one so that extracting it into its own
+# repo stays a one-line change (see CLAUDE.md: "split later if the cache crate
+# is extracted"). Nothing in `cache` may depend on `api`, kube, or aws-sdk —
+# the credential fetcher is injected as a trait.
+[workspace.dependencies]
+recognito-api = { path = "crates/api" }
+recognito-cache = { path = "crates/cache" }
+
+anyhow = "1.0.104"
+# AWS SDK: default features off so it does not bring aws-lc; the HTTPS client
+# is built explicitly on rustls/ring (see each binary's `aws` module).
+aws-config = { version = "1.12.0", default-features = false, features = ["rt-tokio", "behavior-version-latest"] }
+aws-sdk-cognitoidentityprovider = { version = "1.139.0", default-features = false, features = ["rt-tokio", "behavior-version-latest"] }
+aws-smithy-http-client = { version = "1.5.0", features = ["rustls-ring"] }
+aws-smithy-types = "1.8.1"
+base64 = "0.22"
+bytes = "1.12.1"
+futures = { version = "0.3.34", default-features = false, features = ["std"] }
+http = "1.5.0"
+http-body-util = "0.1.5"
+hyper = { version = "1.11.1", features = ["client", "server", "http1"] }
+hyper-rustls = { version = "0.27.10", default-features = false, features = ["http1", "native-tokio", "ring", "tls12", "logging"] }
+hyper-util = { version = "0.1.21", features = ["client-legacy", "server", "server-graceful", "service", "http1", "tokio"] }
+axum = { version = "0.8.9", default-features = false, features = ["http1", "json", "form", "tokio", "query"] }
+dashmap = "6.2.1"
+k8s-openapi = { version = "0.28.0", features = ["latest", "schemars"] }
+# `ring` is the rustls crypto provider. Without it (default-features = false
+# drops it) every TLS handshake fails at runtime, not at build time.
+kube = { version = "4.2.0", default-features = false, features = ["client", "derive", "runtime", "rustls-tls", "ring"] }
+rand = "0.10.2"
+rustls-pki-types = { version = "1.15.1", features = ["std"] }
+rustls = { version = "0.23.45", default-features = false, features = ["ring", "std", "tls12", "logging"] }
+schemars = "1.2.2"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+serde_yaml_ng = "0.10.0"
+sha2 = "0.11.0"
+thiserror = "2.0.20"
+tower = { version = "0.5.3", features = ["util"] }
+tokio-rustls = { version = "0.26.6", default-features = false, features = ["ring", "tls12", "logging"] }
+tokio = { version = "1.53.1", features = ["macros", "rt-multi-thread", "sync", "time", "signal", "net"] }
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter", "json"] }
+
+[profile.release]
+lto = "thin"

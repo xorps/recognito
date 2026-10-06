@@ -1,0 +1,29 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: recognito-controller
+rules:
+  # `patch` on the object is for the finalizer; status is written only
+  # through the status subresource. Nothing else.
+  - apiGroups: ["recognito.io"]
+    resources: ["cognitoclientmappings"]
+    verbs: ["get", "list", "watch", "patch"]
+  - apiGroups: ["recognito.io"]
+    resources: ["cognitoclientmappings/status"]
+    verbs: ["patch"]
+  - apiGroups: ["recognito.io"]
+    resources: ["cognitoclientmappings/finalizers"]
+    verbs: ["update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: recognito-controller
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: recognito-controller
+subjects:
+  - kind: ServiceAccount
+    name: recognito-controller
+    namespace: recognito-system

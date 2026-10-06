@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" role="img" aria-label="recognito">
+  <title>recognito</title>
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7c3aed"/>
+      <stop offset="1" stop-color="#0ea5e9"/>
+    </linearGradient>
+  </defs>
+  <!-- Hexagon: a nod to Kubernetes. Same-colour stroke with round joins softens the corners. -->
+  <path d="M64 10 L110.8 37 L110.8 91 L64 118 L17.2 91 L17.2 37 Z" fill="url(#g)" stroke="url(#g)" stroke-width="10" stroke-linejoin="round"/>
+  <!-- Two arrows chasing each other: the exchange. -->
+  <g fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round">
+    <path d="M32.05 52.37 A34 34 0 0 1 95.95 52.37"/>
+    <path d="M95.95 75.63 A34 34 0 0 1 32.05 75.63"/>
+  </g>
+  <g fill="#fff">
+    <path d="M98.6 59.6 L101.5 47.2 L88.3 51.9 Z"/>
+    <path d="M29.4 68.4 L26.5 80.8 L39.7 76.1 Z"/>
+    <!-- Keyhole: identity, at the centre of the exchange. -->
+    <circle cx="64" cy="58" r="9"/>
+    <path d="M60 63 L68 63 L71 78 L57 78 Z"/>
+  </g>
+</svg>

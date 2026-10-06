@@ -1,0 +1,22 @@
+# The peer port carries bearer tokens and client secrets. mTLS already
+# refuses anyone without a peer certificate; this keeps everyone else from
+# reaching the port at all. Exchange and ops ports stay open to the cluster.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: recognito-broker
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: recognito-broker
+  policyTypes: ["Ingress"]
+  ingress:
+    - ports:
+        - port: https
+        - port: ops
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: recognito-broker
+      ports:
+        - port: peer

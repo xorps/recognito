@@ -1,0 +1,62 @@
+# Peer mTLS for the broker mesh (ADR-5, ADR-20), with cert-manager.
+#
+# A dedicated CA: any certificate it signs is trusted as a broker peer, so it
+# must sign nothing else. All replicas share one peer certificate (peers are
+# anonymous and interchangeable); its DNS name is what replicas verify, pod IPs
+# are only where they connect. cert-manager writes ca.crt into the Secret, and
+# the broker reloads the certificate when it is renewed.
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: recognito-peer-bootstrap
+  namespace: recognito-system
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: recognito-peer-ca
+  namespace: recognito-system
+spec:
+  isCA: true
+  commonName: recognito-peer-ca
+  secretName: recognito-peer-ca
+  duration: 87600h # 10y; rotating the CA needs a rollout of every replica
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    kind: Issuer
+    name: recognito-peer-bootstrap
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: recognito-peer-ca
+  namespace: recognito-system
+spec:
+  ca:
+    secretName: recognito-peer-ca
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: recognito-broker-peer
+  namespace: recognito-system
+spec:
+  secretName: recognito-broker-peer-tls
+  dnsNames:
+    - recognito-broker-peer
+  duration: 2160h
+  renewBefore: 720h
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  usages:
+    - server auth
+    - client auth
+    - digital signature
+  issuerRef:
+    kind: Issuer
+    name: recognito-peer-ca

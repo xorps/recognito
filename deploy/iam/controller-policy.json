@@ -1,0 +1,20 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ManageAppClientsForOnePool",
+      "Effect": "Allow",
+      "Action": [
+        "cognito-idp:CreateUserPoolClient",
+        "cognito-idp:UpdateUserPoolClient",
+        "cognito-idp:DeleteUserPoolClient",
+        "cognito-idp:DescribeUserPoolClient",
+        "cognito-idp:ListUserPoolClients",
+        "cognito-idp:AddUserPoolClientSecret",
+        "cognito-idp:DeleteUserPoolClientSecret",
+        "cognito-idp:ListUserPoolClientSecrets"
+      ],
+      "Resource": "arn:aws:cognito-idp:REGION:ACCOUNT_ID:userpool/POOL_ID"
+    }
+  ]
+}

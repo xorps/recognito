@@ -1,0 +1,14 @@
+# Not part of deploy/base: bring your own issuer. Any tool that writes a
+# kubernetes.io/tls Secret named recognito-broker-tls works.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: recognito-broker
+  namespace: recognito-system
+spec:
+  secretName: recognito-broker-tls
+  dnsNames:
+    - cognito-broker.REPLACE_WITH_DOMAIN
+  issuerRef:
+    kind: ClusterIssuer
+    name: REPLACE_WITH_ISSUER

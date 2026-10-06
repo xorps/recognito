@@ -1,0 +1,46 @@
+[package]
+name = "recognito-broker"
+description = "Validates ServiceAccount tokens and exchanges them for Cognito access tokens."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+recognito-api.workspace = true
+recognito-cache.workspace = true
+
+anyhow.workspace = true
+aws-config.workspace = true
+aws-sdk-cognitoidentityprovider.workspace = true
+aws-smithy-http-client.workspace = true
+base64.workspace = true
+bytes.workspace = true
+futures.workspace = true
+http.workspace = true
+http-body-util.workspace = true
+hyper.workspace = true
+hyper-rustls.workspace = true
+rustls-pki-types.workspace = true
+tokio-rustls.workspace = true
+hyper-util.workspace = true
+axum.workspace = true
+dashmap.workspace = true
+k8s-openapi.workspace = true
+kube.workspace = true
+rand.workspace = true
+rustls.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+[dev-dependencies]
+rustls-pki-types.workspace = true
+tokio-rustls.workspace = true
+http-body-util.workspace = true
+tower.workspace = true
+serde_json.workspace = true
+tokio = { workspace = true, features = ["full"] }

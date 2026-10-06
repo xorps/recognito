@@ -1,0 +1,19 @@
+# Peer discovery (ADR-5): each broker watches this Service's EndpointSlices.
+# Headless, and only ready pods are published, so a replica still warming up
+# is never made the owner of keys it has not seen.
+apiVersion: v1
+kind: Service
+metadata:
+  name: cognito-broker-peers
+  labels:
+    app.kubernetes.io/name: recognito-broker
+    app.kubernetes.io/part-of: recognito
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: recognito-broker
+  ports:
+    - name: peer
+      port: 8444
+      targetPort: peer
+      protocol: TCP

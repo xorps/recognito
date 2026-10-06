@@ -1,0 +1,7 @@
+# Install entrypoint: `kubectl apply -k deploy/`. Overlays should build on
+# this directory, not on base/, so the CRD ships with the workloads.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - crd.yaml
+  - base

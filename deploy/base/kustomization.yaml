@@ -1,0 +1,22 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: recognito-system
+# The CRD is composed one level up (deploy/kustomization.yaml): kustomize's
+# load restrictor refuses ../crd.yaml from here, and the generated file stays
+# at deploy/crd.yaml so CI can diff it against recognito-crdgen.
+resources:
+  - namespace.yaml
+  - broker/serviceaccount.yaml
+  - broker/rbac.yaml
+  - broker/deployment.yaml
+  - broker/service.yaml
+  - broker/pdb.yaml
+  - broker/peer-service.yaml
+  - broker/peer-rbac.yaml
+  - broker/networkpolicy.yaml
+  - controller/serviceaccount.yaml
+  - controller/rbac.yaml
+  - controller/deployment.yaml
+images:
+  - name: ghcr.io/recognito/recognito
+    newTag: 0.1.0

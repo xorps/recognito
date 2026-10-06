@@ -1,0 +1,20 @@
+# For workloads outside the cluster that authenticate with a SigV4-presigned
+# GetCallerIdentity URL. The broker's SigV4 door is closed unless
+# RECOGNITO_SIGV4_REGIONS and RECOGNITO_SIGV4_TRUSTED_ACCOUNTS are set.
+# Any namespace can name any role, so gate this field with admission policy.
+apiVersion: recognito.io/v1alpha1
+kind: CognitoClientMapping
+metadata:
+  name: payments-batch
+  namespace: payments
+spec:
+  awsRole:
+    arn: arn:aws:iam::111122223333:role/payments-batch
+  userPoolId: us-east-1_EXAMPLE
+  allowedScopes:
+    - name: read
+      scopes: [payments/read]
+    - name: write
+      scopes: [payments/read, payments/write]
+  tokenValidity: 15m
+  rotateAfter: 2160h
