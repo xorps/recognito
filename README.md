@@ -17,6 +17,14 @@ secrets into every workload that calls a Cognito-protected API. recognito
 removes that: a controller owns the app clients and their secrets, and a broker
 hands out tokens to workloads that prove who they are.
 
+> [!NOTE]
+> **recognito never issues, re-signs or modifies tokens.** It only mediates:
+> it calls Cognito's own token endpoint with the app client's credentials and
+> returns the access token Cognito issued, byte for byte. recognito holds no
+> signing keys and publishes no JWKS. Your APIs keep validating tokens against
+> your user pool's JWKS exactly as they do today, and Cognito remains the only
+> issuer they need to trust.
+
 ## Architecture
 
 ```mermaid
