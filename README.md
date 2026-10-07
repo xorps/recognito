@@ -25,6 +25,35 @@ hands out tokens to workloads that prove who they are.
 > your user pool's JWKS exactly as they do today, and Cognito remains the only
 > issuer they need to trust.
 
+## It is also a token cache, which cuts your Cognito bill
+
+Cognito bills machine-to-machine usage **per successful token request**. AWS
+[introduced M2M pricing in May 2024](https://aws.amazon.com/about-aws/whats-new/2024/05/amazon-cognito-tiered-pricing-m2m-usage/),
+and the [current list price](https://aws.amazon.com/cognito/pricing/) is
+$2.25 per 1,000 token requests in standard regions, with no free tier. The
+separate per-app-client charge was
+[removed in November 2025](https://aws.amazon.com/about-aws/whats-new/2025/11/amazon-cognito-removes-machine-machine-app-client-price-dimension),
+which is what makes recognito's one-app-client-per-mapping design free.
+
+Without a broker, every pod fetches its own tokens, and plenty of clients fetch
+one per call. recognito sits in front of the token endpoint as a
+**fleet-wide cache**. Callers get a cached token while it still has time left,
+and the broker mesh makes sure each app client and scope profile is fetched
+from Cognito about once per refresh interval, however many pods ask. In a
+3-replica test, 60 exchanges cost 3 token requests.
+
+An illustration, with one app client, one scope profile and the default
+15-minute tokens:
+
+| | Token requests per month | At $2.25 per 1,000 |
+|---|---|---|
+| 100 pods calling Cognito directly, one token per pod per minute | 4,320,000 | $9,720 |
+| The same pods through recognito (one refresh every ~10 minutes, fleet-wide) | about 4,100 | about $9 |
+
+Your savings depend on how often your workloads fetch tokens today. Prices
+are AWS list prices as of October 2026; check the
+[pricing page](https://aws.amazon.com/cognito/pricing/) for your region.
+
 ## Architecture
 
 ```mermaid
@@ -340,6 +369,49 @@ including real TokenReview, CEL admission and a 3-replica mesh. **AWS has only
 been faked** at its API boundaries; run the
 [verification steps](docs/OPERATIONS.md#install) against a real user pool in a
 staging account before production.
+
+## Extending it: federated identities
+
+The broker is built to accept more kinds of identity than the two it ships
+with. Every caller enters through a "door" chosen by `subject_token_type`;
+each door turns a credential into a `WorkloadIdentity`, and everything after
+that — mapping lookup, scope profiles, the cache and the mesh — is shared.
+
+Natural next doors, none of them built yet:
+
+- **OIDC tokens from other issuers**: GitHub Actions, GitLab CI, other
+  Kubernetes clusters' ServiceAccount issuers, or Google Cloud and Azure
+  workload identity. Validate against the issuer's JWKS, then map
+  `(issuer, subject)` to a mapping.
+- **SPIFFE JWT-SVIDs** from SPIRE, mapped by SPIFFE ID (already an open item
+  in [DESIGN.md](docs/DESIGN.md)).
+- **X.509 client certificates over mutual TLS** on `/token`, validated against
+  configured trust anchors (a private CA, AWS Private CA, SPIFFE X.509-SVIDs)
+  and mapped by the certificate's SAN. The caller proves possession of a
+  private key instead of presenting a bearer credential, so nothing it sends
+  can be replayed elsewhere. Two deployments would be supported:
+  - **TLS passthrough** at layer 4 (an NLB TCP listener, ingress-nginx
+    `ssl-passthrough`, a Gateway API `TLSRoute`): the handshake reaches the
+    broker, which verifies the certificate itself. The full guarantee, no
+    extra trust.
+  - **A proxy terminates mTLS** and forwards the certificate in a header (ALB
+    mTLS's `X-Amzn-Mtls-Clientcert`, Envoy or Istio's
+    `x-forwarded-client-cert`, ingress-nginx's `ssl-client-cert`). Only the
+    proxy saw the proof of possession, so the broker trusts it on four
+    conditions: the proxy strips any copy of the header a client sends; the
+    header is accepted only on a separate listener that the proxy reaches
+    with its own certificate from a dedicated CA; the header format is fixed
+    in configuration, never guessed; and the broker re-validates the
+    forwarded chain against its own trust anchors.
+
+Certificates already work indirectly today: a workload whose certificate is
+trusted by [IAM Roles Anywhere](https://docs.aws.amazon.com/rolesanywhere/latest/userguide/introduction.html)
+gets role credentials, and uses them to call recognito through the SigV4 door.
+
+A new door needs a token type, a validator, a `WorkloadIdentity` variant and a
+mapping field — and must keep the rule every existing door follows: the
+credential is bound to the broker's audience and refused otherwise, so a token
+minted for someone else cannot be replayed here (invariant 2).
 
 ## Development
 
